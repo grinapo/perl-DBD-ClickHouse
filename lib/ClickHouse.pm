@@ -7,6 +7,7 @@ use warnings FATAL => 'all';
 our $VERSION = '0.05';
 
 use Net::HTTP;
+use Net::HTTPS;
 use URI;
 use URI::Escape;
 use URI::QueryParam;
@@ -35,6 +36,8 @@ sub new {
         '_socket'     => undef,
         '_uri'        => undef,
         '_timeout'    => 30,
+        # SSL Parameters
+        '_proto'      => 'http',
     );
 
     #
@@ -72,6 +75,17 @@ sub new {
                 $self->{"_$key"} = $_attrs{"_$key"};
             }
         }
+        if ( $self->{_proto} eq 'https' ) {
+            # Default to port 8443
+            $self->{_port} = 8443 unless $args{port};
+            # Pass SSL Args along
+            foreach my $k ( keys %args ) {
+                $self->{_ssl_args}{$k} = $args{$k}
+                    if $k =~ /^SSL_/;
+            }
+
+        }
+
         $self->{'_builder'} = \&_builder;
 
         $self->_connect();
@@ -84,15 +98,28 @@ sub new {
         delete $self->{'_socket'};
         delete $self->{'_uri'};
 
-        # create Net::HTTP object
-        my $socket = Net::HTTP->new(
+        # create connection
+        my $socket;
+        my %opts = (
             'Host'        => $self->{'_host'},
             'PeerPort'    => $self->{'_port'},
             'HTTPVersion' => '1.1',
             'KeepAlive'   => $self->{'_keep_alive'},
             'Timeout'     => $self->{'_timeout'},
-
-        ) or die "Can't connect: $@";
+        );
+        if ( $self->{_proto} eq 'https' ) {
+            $socket = Net::HTTPS->new(
+                %opts,
+                $self->{_ssl_args} ? %{ $self->{_ssl_args} } : (),
+            ) or die "Can't connect: $@";
+        }
+        elsif ( $self->{_proto} eq 'http' ) {
+            $socket = Net::HTTP->new(%opts)
+                or die "Can't connect: $@";
+        }
+        else {
+            die "Invalid proto '$self->{_proto}', must be http or https";
+        }
 
         # create URI object
         my $uri = URI->new(sprintf ("/?database=%s", $self->{'_database'}));
@@ -385,6 +412,7 @@ This module is a big rough on the edges, but I decided to release it on CPAN so 
         user     => 'Frodo'
         password => 'finger',
         timeout  => 5,
+        proto    => 'http',
     );
 
     my $rows = $ch->select("SELECT id, field_one, field_two FROM some_table");
@@ -398,12 +426,41 @@ This module is a big rough on the edges, but I decided to release it on CPAN so 
         [2, "String value", 38962986],
     );
 
+    # Use TLS
+    my $ch = ClickHouse->new(
+        host     => $ENV{'CLICK_HOUSE_HOST'}
+        user     => 'Frodo'
+        password => 'finger',
+        timeout  => 5,
+        proto    => 'https',
+    );
+
+    # Any "SSL_" parameters are passed to the IO::Socket::SSL implementation
+    my $ch = ClickHouse->new(
+        host        => $ENV{'CLICK_HOUSE_HOST'}
+        user        => 'Frodo'
+        password    => 'finger',
+        timeout     => 5,
+        proto       => 'https',
+        SSL_ca_file => '/etc/pki/tls/certs/ca-bundle.pem',
+    );
+
 
 =head1 SUBROUTINES/METHODS
 
 =head2 new
 
 Create new connection object
+
+=over 2
+
+=item B<proto>
+
+The protocol defaults to C<http>, but can be set to C<https> to use L<Net::HTTPS> to connect.
+Any parameters for L<IO::Socket::SSL> (those start with "SSL_") are passed
+through to the L<Net::HTTPS> constuctor.
+
+=back
 
 =head2 select
 
