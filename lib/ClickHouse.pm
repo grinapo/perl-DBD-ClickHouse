@@ -4,7 +4,7 @@ use 5.010;
 use strict;
 use warnings FATAL => 'all';
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 use Net::HTTP;
 use Net::HTTPS;
@@ -27,7 +27,7 @@ ClickHouse - Database driver for Clickhouse OLAP Database
 
 =head1 VERSION
 
-Version 0.05
+Version 0.06
 
 =head1 SYNOPSIS
 
@@ -575,7 +575,13 @@ L<http://search.cpan.org/dist/ClickHouse/>
 
 =head1 ACKNOWLEDGEMENTS
 
-…
+Github repo contributors: 
+Alexandr Tkach,
+Martin Sebastijan Šestak (msestak), 
+Tore Andersson (orera),
+Brad Lhotsky (reyjrar),
+Peter Gervai (grinapo)
+
 
 =head1 LICENSE AND COPYRIGHT
 
