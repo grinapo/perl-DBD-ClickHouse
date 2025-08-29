@@ -234,17 +234,24 @@ sub _read_body {
     my ($self) = @_;
 
     my @response;
-    my $chunk = '';
+    my $remainder = '';
     while (1) {
         my $buf;
-        my $n = $self->_get_socket()->read_entity_body($buf, 1024);
+        my $n = $self->_get_socket()->read_entity_body( $buf, 1024 );
+        $buf       = $remainder . $buf;
+        $remainder = '';
         die "can't read response: $!" unless defined $n;
         last unless $n;
-        $buf = $chunk . $buf;
-        push @response, split (/\n/, $buf);
-        $chunk = substr ($buf,-1) eq "\n" ? '' : pop @response;
+        if ( $buf =~ s!([^\n]+\z)!! ) {
+            $remainder = $1;
+        }
+        push @response, split( /\n/, $buf );
     }
-    push @response, $chunk if $chunk;
+
+    # warn if remainder is not empty (shouldn't happen)
+    # in case that read_entity_body() returns an empty string but $remainder still has content
+    carp "remainder not empty:{$remainder}" if $remainder;
+
     return \@response;
 }
 
