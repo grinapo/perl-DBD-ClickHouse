@@ -1,16 +1,13 @@
 NAME
-
     ClickHouse - Database driver for Clickhouse OLAP Database
 
 VERSION
-
-    Version 0.05
+    Version 0.06
 
 SYNOPSIS
-
     ClickHouse - perl interface to Clickhouse Database. My final goal is to
-    create DBI compatible driver for ClickHouse, but for now it's
-    standalone module.
+    create DBI compatible driver for ClickHouse, but for now it's standalone
+    module.
 
     It's the first version and so module is EXPERIMENTAL. I can't guarantee
     API stability. More over, API will probably change and it will be soon.
@@ -19,93 +16,131 @@ SYNOPSIS
     CPAN so people can start playing around with it.
 
 EXAMPLE
-
         use ClickHouse;
-    
+
         my $ch = ClickHouse->new(
             host     => $ENV{'CLICK_HOUSE_HOST'}
             port     => 8123,
             user     => 'Frodo'
             password => 'finger',
             timeout  => 5,
+            proto    => 'http',
         );
-    
+
         my $rows = $ch->select("SELECT id, field_one, field_two FROM some_table");
-    
+
         for my $row (@$rows) {
             # Do something with your row
         }
-    
+
         $ch->do("INSERT INTO some_table (id, field_one, field_two) VALUES",
             [1, "String value", 38962986],
             [2, "String value", 38962986],
         );
 
+        # Use TLS
+        my $ch = ClickHouse->new(
+            host     => $ENV{'CLICK_HOUSE_HOST'}
+            user     => 'Frodo'
+            password => 'finger',
+            timeout  => 5,
+            proto    => 'https',
+        );
+
+        # Any "SSL_" parameters are passed to the IO::Socket::SSL implementation
+        my $ch = ClickHouse->new(
+            host        => $ENV{'CLICK_HOUSE_HOST'}
+            user        => 'Frodo'
+            password    => 'finger',
+            timeout     => 5,
+            proto       => 'https',
+            SSL_ca_file => '/etc/pki/tls/certs/ca-bundle.pem',
+        );
+
 SUBROUTINES/METHODS
-
- new
-
+  new(\%opts)
     Create new connection object
 
- select
+    proto
+      The protocol defaults to "http", but can be set to "https" to use
+      Net::HTTPS to connect. Any parameters for IO::Socket::SSL (those start
+      with "SSL_") are passed through to the Net::HTTPS constuctor.
 
+  disconnect
+    Disconnects from database.
+
+  select($query)
     Fetch data from table. It returns a reference to an array that contains
     one reference per row (similar to DBI::fetchall_arrayref).
 
- do
+  select_value($query)
+    Return the first value of the first row of the results. Equals to
 
+        my $arrayref = $ch->select($query);
+        return $arrayref->[0]->[0];
+
+  selectall_arrayref($query, \%attr)
+    Retrieves result columns in an array reference. If %attr contains {
+    Columns => 'HASH' } then return column name and value pars in a hash.
+
+  selectcol_arrayref($query)
+    Return the first columns of the results as an array.
+
+  do($query, @rows)
     Modify data inside the database. It's universal method for any queries,
-    which modify data. So if you want to create, alter, detach or drop
-    table or partition or insert data into table it's your guy.
+    which modify data. So if you want to create, alter, detach or drop table
+    or partition or insert data into table it's your guy.
+
+  ping
+    Checks database connection, results true if OK.
 
 AUTHOR
-
-    Ilya Rassadin, <elcamlost at gmail.com>
+    Ilya Rassadin, "<elcamlost at gmail.com>"
 
 BUGS
-
     Please report any bugs or feature requests to
-    https://github.com/elcamlost/perl-DBD-ClickHouse/issues. I will be
+    <https://github.com/elcamlost/perl-DBD-ClickHouse/issues>. I will be
     notified, and then you'll automatically be notified of progress on your
     bug as I make changes.
 
 SUPPORT
-
     You can find documentation for this module with the perldoc command.
 
         perldoc ClickHouse
 
     You can also look for information at:
 
-      * ClickHouse official documentation
+    *   ClickHouse official documentation
 
-      https://clickhouse.yandex/reference_en.html
+        <https://clickhouse.yandex/reference_en.html>
 
-      * Metacpan
+    *   Metacpan
 
-      https://metacpan.org/pod/ClickHouse/
+        <https://metacpan.org/pod/ClickHouse/>
 
-      * GitHub
+    *   GitHub
 
-      https://github.com/elcamlost/perl-DBD-ClickHouse
+        <https://github.com/elcamlost/perl-DBD-ClickHouse>
 
-      * CPAN Ratings
+    *   CPAN Ratings
 
-      http://cpanratings.perl.org/d/ClickHouse
+        <http://cpanratings.perl.org/d/ClickHouse>
 
-      * Search CPAN
+    *   Search CPAN
 
-      http://search.cpan.org/dist/ClickHouse/
+        <http://search.cpan.org/dist/ClickHouse/>
 
 ACKNOWLEDGEMENTS
+    Github repo contributors: Alexandr Tkach, Martin Sebastijan Šestak
+    (msestak), Tore Andersson (orera), Brad Lhotsky (reyjrar), Peter Gervai
+    (grinapo)
 
 LICENSE AND COPYRIGHT
-
     Copyright 2016 Ilya Rassadin.
 
     This program is free software; you can redistribute it and/or modify it
-    under the terms of the the Artistic License (2.0). You may obtain a
-    copy of the full license at:
+    under the terms of the the Artistic License (2.0). You may obtain a copy
+    of the full license at:
 
        The Artistic License 2.0 (GPL Compatible)
 
