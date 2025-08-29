@@ -17,6 +17,93 @@ use Try::Tiny;
 
 our $AUTOLOAD;
 
+=pod
+
+=encoding UTF-8
+
+=head1 NAME
+
+ClickHouse - Database driver for Clickhouse OLAP Database
+
+=head1 VERSION
+
+Version 0.05
+
+=head1 SYNOPSIS
+
+ClickHouse - perl interface to Clickhouse Database. My final goal is to create DBI compatible driver for ClickHouse, but for now it's standalone module.
+
+It's the first version and so module is EXPERIMENTAL. I can't guarantee API stability. More over, API will probably change and it will be soon.
+
+This module is a big rough on the edges, but I decided to release it on CPAN so people can start playing around with it.
+
+
+=head1 EXAMPLE
+
+    use ClickHouse;
+
+    my $ch = ClickHouse->new(
+        host     => $ENV{'CLICK_HOUSE_HOST'}
+        port     => 8123,
+        user     => 'Frodo'
+        password => 'finger',
+        timeout  => 5,
+        proto    => 'http',
+    );
+
+    my $rows = $ch->select("SELECT id, field_one, field_two FROM some_table");
+
+    for my $row (@$rows) {
+        # Do something with your row
+    }
+
+    $ch->do("INSERT INTO some_table (id, field_one, field_two) VALUES",
+        [1, "String value", 38962986],
+        [2, "String value", 38962986],
+    );
+
+    # Use TLS
+    my $ch = ClickHouse->new(
+        host     => $ENV{'CLICK_HOUSE_HOST'}
+        user     => 'Frodo'
+        password => 'finger',
+        timeout  => 5,
+        proto    => 'https',
+    );
+
+    # Any "SSL_" parameters are passed to the IO::Socket::SSL implementation
+    my $ch = ClickHouse->new(
+        host        => $ENV{'CLICK_HOUSE_HOST'}
+        user        => 'Frodo'
+        password    => 'finger',
+        timeout     => 5,
+        proto       => 'https',
+        SSL_ca_file => '/etc/pki/tls/certs/ca-bundle.pem',
+    );
+
+
+=head1 SUBROUTINES/METHODS
+
+=cut 
+
+=pod 
+
+=head2 new(\%opts)
+
+Create new connection object
+
+=over 2
+
+=item B<proto>
+
+The protocol defaults to C<http>, but can be set to C<https> to use L<Net::HTTPS> to connect.
+Any parameters for L<IO::Socket::SSL> (those start with "SSL_") are passed
+through to the L<Net::HTTPS> constuctor.
+
+=back
+
+=cut
+
 sub new {
     my ($class, %opts) = @_;
     my $self = bless {}, $class;
@@ -170,6 +257,14 @@ sub ClickHouse::AUTOLOAD {
 
 sub DESTROY {}
 
+=pod
+
+=head2 disconnect
+
+Disconnects from database.
+
+=cut
+
 sub disconnect {
     my ($self) = @_;
     if (my $socket = $self->_get_socket()) {
@@ -180,6 +275,13 @@ sub disconnect {
 }
 
 
+=pod
+
+=head2 select($query)
+
+Fetch data from table. It returns a reference to an array that contains one reference per row (similar to DBI::fetchall_arrayref).
+
+=cut
 
 sub select {
     my ($self, $query) = @_;
@@ -203,12 +305,33 @@ sub select {
     });
 }
 
+=pod
+
+=head2 select_value($query)
+
+Return the first value of the first row of the results.
+Equals to 
+
+    my $arrayref = $ch->select($query);
+    return $arrayref->[0]->[0];
+
+=cut
+
 sub select_value {
     my ($self, $query) = @_;
 
     my $arrayref = $self->select($query);
     return $arrayref->[0]->[0];
 }
+
+=pod
+
+=head2 selectall_arrayref($query, \%attr)
+
+Retrieves result columns in an array reference. 
+If %attr contains { Columns => 'HASH' } then return column name and value pars in a hash.
+
+=cut
 
 sub selectall_arrayref {
     my ($self, $query, $attr) = @_;
@@ -237,6 +360,14 @@ sub _selectall_arrayref_hashref {
     return $arrayref;
 }
 
+=pod
+
+=head2 selectcol_arrayref($query)
+
+Return the first columns of the results as an array.
+
+=cut
+
 sub selectcol_arrayref {
     my ($self, $query) = @_;
     my $arrayref = $self->select($query);
@@ -244,6 +375,15 @@ sub selectcol_arrayref {
     return unless defined $arrayref && ref $arrayref eq 'ARRAY';
     return [ map { $_->[0] } @{$arrayref} ];
 }
+
+=pod
+
+=head2 do($query, @rows)
+
+Modify data inside the database. It's universal method for any queries, which modify data. 
+So if you want to create, alter, detach or drop table or partition or insert data into table it's your guy.
+
+=cut
 
 sub do {
     my ($self, $query, @rows) = @_;
@@ -257,6 +397,14 @@ sub do {
     });
 
 }
+
+=pod
+
+=head2 ping
+
+Checks database connection, results true if OK.
+
+=cut
 
 sub ping {
     my ($self) = @_;
@@ -378,97 +526,8 @@ sub _escape_value {
 
 __END__
 
+
 =pod
-
-=encoding UTF-8
-
-=head1 NAME
-
-ClickHouse - Database driver for Clickhouse OLAP Database
-
-=head1 VERSION
-
-Version 0.05
-
-
-
-
-=head1 SYNOPSIS
-
-ClickHouse - perl interface to Clickhouse Database. My final goal is to create DBI compatible driver for ClickHouse, but for now it's standalone module.
-
-It's the first version and so module is EXPERIMENTAL. I can't guarantee API stability. More over, API will probably change and it will be soon.
-
-This module is a big rough on the edges, but I decided to release it on CPAN so people can start playing around with it.
-
-
-=head1 EXAMPLE
-
-    use ClickHouse;
-
-    my $ch = ClickHouse->new(
-        host     => $ENV{'CLICK_HOUSE_HOST'}
-        port     => 8123,
-        user     => 'Frodo'
-        password => 'finger',
-        timeout  => 5,
-        proto    => 'http',
-    );
-
-    my $rows = $ch->select("SELECT id, field_one, field_two FROM some_table");
-
-    for my $row (@$rows) {
-        # Do something with your row
-    }
-
-    $ch->do("INSERT INTO some_table (id, field_one, field_two) VALUES",
-        [1, "String value", 38962986],
-        [2, "String value", 38962986],
-    );
-
-    # Use TLS
-    my $ch = ClickHouse->new(
-        host     => $ENV{'CLICK_HOUSE_HOST'}
-        user     => 'Frodo'
-        password => 'finger',
-        timeout  => 5,
-        proto    => 'https',
-    );
-
-    # Any "SSL_" parameters are passed to the IO::Socket::SSL implementation
-    my $ch = ClickHouse->new(
-        host        => $ENV{'CLICK_HOUSE_HOST'}
-        user        => 'Frodo'
-        password    => 'finger',
-        timeout     => 5,
-        proto       => 'https',
-        SSL_ca_file => '/etc/pki/tls/certs/ca-bundle.pem',
-    );
-
-
-=head1 SUBROUTINES/METHODS
-
-=head2 new
-
-Create new connection object
-
-=over 2
-
-=item B<proto>
-
-The protocol defaults to C<http>, but can be set to C<https> to use L<Net::HTTPS> to connect.
-Any parameters for L<IO::Socket::SSL> (those start with "SSL_") are passed
-through to the L<Net::HTTPS> constuctor.
-
-=back
-
-=head2 select
-
-Fetch data from table. It returns a reference to an array that contains one reference per row (similar to DBI::fetchall_arrayref).
-
-=head2 do
-
-Modify data inside the database. It's universal method for any queries, which modify data. So if you want to create, alter, detach or drop table or partition or insert data into table it's your guy.
 
 =head1 AUTHOR
 
@@ -516,6 +575,7 @@ L<http://search.cpan.org/dist/ClickHouse/>
 
 =head1 ACKNOWLEDGEMENTS
 
+…
 
 =head1 LICENSE AND COPYRIGHT
 
@@ -540,6 +600,5 @@ permission.
 THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED
 WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-
 
 =cut
